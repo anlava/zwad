@@ -11,6 +11,7 @@ from sklearn.ensemble import IsolationForest
 from zwad.ad.preprocess import scale_values
 from zwad.ad.postprocess import save_anomaly_list
 from zwad.ad.util import run_classifier, fetch_anomalies
+from zwad.ad.transformation import *
 
 
 class ZtfAnomalyDetector:
@@ -55,6 +56,14 @@ class ZtfAnomalyDetector:
         if n >= 0:
             self.names = self.names[:n]
             self.values = self.values[:n, :]
+
+        # In-place transformation of self.values
+        if self.args.transform:
+            if self.args.feature_names is None:
+                raise ValueError('--feature-names must be specified when --transform is enabled')
+            with open(self.args.feature_names) as fh:
+                self.feature_names = fh.read().split()
+            transform_features(self.values, self.feature_names)
 
         # Scaling
         if self.args.scale.startswith('pca') and len(self.args.scale) > 3:
@@ -106,10 +115,13 @@ class ZtfAnomalyDetector:
         parser.add_argument('-k', '--scale', default='std', type=str,
                             help='Scale algorithm. One of minmax, std, pca. Default is std. '
                                  'The last one may have optional number of components, e.g. -k pca15.')
+        parser.add_argument('-t', '--transform', action='store_true',
+                            help='Data transformation using nonlinear functions.')
         parser.add_argument('--oid', help='Name of the file with object IDs. May be repeated.',
                             required=True, action='append')
         parser.add_argument('--feature', help='Name of the file with corresponding features. May be repeated.',
                             required=True, action='append')
+        parser.add_argument('--feature-names', help='Name of the file with feature names, one name per line.')
         return parser
 
     @classmethod
